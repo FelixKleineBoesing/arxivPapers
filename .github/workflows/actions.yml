@@ -27,5 +27,5 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements_dev.txt
-          coverage run -m pytest tests --source=./arxiv
+          coverage run --source=./arxiv -m pytest tests
           coverage report -m
