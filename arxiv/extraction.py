@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def download_arxiv_dataset(download_dir: Path = Path("..", "data",  "raw")):
-    dataset = NodePropPredDataset(name="ogbn-arxiv", root=download_dir)
+    _ = NodePropPredDataset(name="ogbn-arxiv", root=download_dir)
 
 
 if __name__ == "__main__":
