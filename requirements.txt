@@ -4,4 +4,4 @@ numpy
 fastapi
 uvicorn[standard]
 tensorflow
-stellargraph
+spektral
