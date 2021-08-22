@@ -2,3 +2,26 @@
 /data/
 arxiv/__pycache__/
 *.pyc
+
+
+# dependencies
+arxiv-app/node_modules
+arxiv-app/.pnp
+arxiv-app/.pnp.js
+
+# testing
+arxiv-app/coverage
+
+# production
+arxiv-app/build
+
+# misc
+arxiv-app/.DS_Store
+arxiv-app/.env.local
+arxiv-app/.env.development.local
+arxiv-app/.env.test.local
+arxiv-app/.env.production.local
+
+arxiv-app/npm-debug.log*
+arxiv-app/yarn-debug.log*
+arxiv-app/yarn-error.log*
