@@ -19,5 +19,5 @@ def get_masks(idx, number_nodes):
     mask_tr[idx_tr] = True
     mask_va[idx_va] = True
     mask_te[idx_te] = True
-    masks = [mask_tr, mask_va, mask_te]
+    masks = {"train": mask_tr, "val": mask_va, "test": mask_te}
     return masks

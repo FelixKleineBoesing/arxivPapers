@@ -6,8 +6,19 @@ from tensorflow.python.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.python.keras.optimizer_v2.adam import Adam
 
 
+def evaluate(graph, model, masks, evaluator):
+    x, adj, y = graph.x, graph.a, graph.y
+    p = model([x, adj], training=False)
+    p = p.numpy().argmax(-1)[:, None]
+    tr_mask, va_mask, te_mask = masks["train"], masks["val"], masks["test"]
+    tr_auc = evaluator.eval({"y_true": y[tr_mask], "y_pred": p[tr_mask]})["acc"]
+    va_auc = evaluator.eval({"y_true": y[va_mask], "y_pred": p[va_mask]})["acc"]
+    te_auc = evaluator.eval({"y_true": y[te_mask], "y_pred": p[te_mask]})["acc"]
+    return tr_auc, va_auc, te_auc
+
+
 def build_model(number_nodes:  int, number_features: int, num_classes: int, channels: int = 256,
-                dropout: float =  0.4):
+                dropout: float = 0.4):
 
     x_inp = Input(shape=(number_features,))
     a_inp = Input((number_nodes,), sparse=True)
@@ -24,11 +35,17 @@ def build_model(number_nodes:  int, number_features: int, num_classes: int, chan
     return model, optimizer, loss
 
 
-def train_model(model, train_label, train_idx, test_label, test_idx):
-    model.fit(generator.flow(train_idx, train_label), epochs=5)
+def train_model(model, optimizer, loss, graph, masks, evaluator,epochs: int = 5):
+    x, adj, y = graph.x, graph.a, graph.y
+    train = get_train_function(model, optimizer=optimizer, loss_func=loss)
 
-    loss, accuracy = model.evaluate(generator.flow(test_idx, test_label))
-    return loss,  accuracy
+    for i in range(1, 1 + epochs):
+        tr_loss = train([x, adj], y, masks["train"])
+        tr_acc, va_acc, te_acc = evaluate(graph, model, masks, evaluator)
+        print(
+            "Ep. {} - Loss: {:.3f} - Acc: {:.3f} - Val acc: {:.3f} - Test acc: "
+            "{:.3f}".format(i, tr_loss, tr_acc, va_acc, te_acc)
+        )
 
 
 def get_train_function(model, optimizer, loss_func):
@@ -41,3 +58,4 @@ def get_train_function(model, optimizer, loss_func):
         gradients = tape.gradient(loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         return loss
+    return train
