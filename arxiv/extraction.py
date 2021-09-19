@@ -2,12 +2,13 @@ from ogb.nodeproppred import NodePropPredDataset
 from pathlib import Path
 import numpy as np
 from spektral.datasets.ogb import OGB
-from spektral.transforms import AdjToSpTensor, GCNFilter
+from spektral.layers import GCNConv
+from spektral.transforms import LayerPreprocess
 
 
 def download_arxiv_dataset(download_dir: Path = Path("..", "data",  "raw")):
     dataset = NodePropPredDataset(name="ogbn-arxiv", root=download_dir)
-    ogb_dataset = OGB(dataset, transforms=[GCNFilter(), AdjToSpTensor()])
+    ogb_dataset = OGB(dataset, transforms=[LayerPreprocess(GCNConv)])
     return ogb_dataset
 
 

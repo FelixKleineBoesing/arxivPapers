@@ -2,10 +2,10 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input, Dropout, BatchNormalization
 from spektral.layers import GCNConv
 import pandas as pd
-from tensorflow.python.keras.callbacks import EarlyStopping
-from tensorflow.python.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.python.keras.optimizer_v2.adam import Adam
-from spektral.data.loaders import SingleLoader
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.optimizers import Adam
+from spektral.data.loaders import BatchLoader, DisjointLoader, MixedLoader
 
 
 def evaluate(graph, model, masks, evaluator):
@@ -38,15 +38,15 @@ def build_model(number_nodes:  int, number_features: int, num_classes: int, chan
     x_2 = BatchNormalization()(x_2)
     x_2 = Dropout(dropout)(x_2)
     predictions = GCNConv(num_classes, activation="softmax")([x_2, a_inp])
-    model = tf.keras.Model(inputs=[x_inp, a_inp], outputs= predictions)
+    model = tf.keras.Model(inputs=[x_inp, a_inp], outputs=predictions)
     model.compile(**compile_args)
     print(model.summary())
     return model
 
 
 def train_model(model, dataset, masks, epochs: int = 2000, early_stopping_patience: int = 50):
-    train_loader = SingleLoader(dataset=dataset, sample_weights=masks["train"], epochs=epochs)
-    val_loader = SingleLoader(dataset=dataset, sample_weights=masks["val"], epochs=epochs)
+    train_loader = BatchLoader(dataset=dataset, batch_size=32, epochs=epochs)
+    val_loader = BatchLoader(dataset=dataset, batch_size=32, epochs=epochs)
 
     model.fit(train_loader.load(),
               steps_per_epoch=train_loader.steps_per_epoch,
