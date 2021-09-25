@@ -1,6 +1,8 @@
 from pathlib import Path
 import pandas as pd
 from ogb.nodeproppred import Evaluator
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.optimizers import Adam
 
 from arxiv.evaluate import evaluate_model
 from arxiv.extraction import download_arxiv_dataset, get_masks
@@ -25,7 +27,9 @@ def main():
     evaluator = Evaluator("ogbn-arxiv")
 
     model = build_model(number_nodes=number_nodes, number_features=number_node_features, num_classes=number_classes)
-    model = train_model(model, dataset, masks=masks)
+    optimizer = Adam()
+    loss = SparseCategoricalCrossentropy()
+    model = train_model(model, optimizer=optimizer, loss=loss, dataset=dataset, masks=masks)
     evl_results = evaluate_model(model, dataset, masks)
     print(evl_results)
 

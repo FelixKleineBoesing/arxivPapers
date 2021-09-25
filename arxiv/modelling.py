@@ -2,10 +2,6 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input, Dropout, BatchNormalization
 from spektral.layers import GCNConv
 import pandas as pd
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.optimizers import Adam
-from spektral.data.loaders import BatchLoader, DisjointLoader, MixedLoader
 
 
 def evaluate(graph, model, masks, evaluator):
@@ -20,15 +16,7 @@ def evaluate(graph, model, masks, evaluator):
 
 
 def build_model(number_nodes:  int, number_features: int, num_classes: int, channels: int = 256,
-                dropout: float = 0.4, compile_args: dict = None):
-    compile_args = {} if compile_args is None else compile_args
-    if "optimizer" not in compile_args:
-        compile_args["optimizer"] = Adam(0.5e-2)
-    if "loss" not in compile_args:
-        compile_args["loss"] = SparseCategoricalCrossentropy()
-    if "metrics" not in compile_args:
-        compile_args["metrics"] = ["accuracy"]
-
+                dropout: float = 0.4):
     x_inp = Input(shape=(number_features,))
     a_inp = Input((number_nodes,), sparse=True)
     x_1 = GCNConv(channels, activation="relu")([x_inp, a_inp])
@@ -39,20 +27,34 @@ def build_model(number_nodes:  int, number_features: int, num_classes: int, chan
     x_2 = Dropout(dropout)(x_2)
     predictions = GCNConv(num_classes, activation="softmax")([x_2, a_inp])
     model = tf.keras.Model(inputs=[x_inp, a_inp], outputs=predictions)
-    model.compile(**compile_args)
-    print(model.summary())
     return model
 
 
-def train_model(model, dataset, masks, epochs: int = 2000, early_stopping_patience: int = 50):
-    train_loader = BatchLoader(dataset=dataset, batch_size=32, epochs=epochs)
-    val_loader = BatchLoader(dataset=dataset, batch_size=32, epochs=epochs)
+def train_model(model, optimizer, loss, dataset, masks, epochs: int = 2000, early_stopping_patience: int = 50,
+                batch_size: int = 32):
+    train = get_training_function(model, loss, optimizer)
+    x, adj, y = dataset[0].x, dataset[0].a, dataset[0].y
+    for i in range(1, 1 + epochs):
+        all_data_used = False
+        while not all_data_used:
+            tr_loss = train([x, adj], y, mask_tr)
+            tr_acc, va_acc, te_acc = evaluate(x, adj, y, model, masks, evaluator)
+            print(
+                "Ep. {} - Loss: {:.3f} - Acc: {:.3f} - Val acc: {:.3f} - Test acc: "
+                "{:.3f}".format(i, tr_loss, tr_acc, va_acc, te_acc)
+            )
 
-    model.fit(train_loader.load(),
-              steps_per_epoch=train_loader.steps_per_epoch,
-              validation_data=val_loader.load(),
-              validation_steps=val_loader.steps_per_epoch,
-              epochs=epochs,
-              callbacks=[EarlyStopping(patience=early_stopping_patience, restore_best_weights=True)]
-              )
     return model
+
+
+def get_training_function(model, loss_func, optimizer):
+    @tf.function
+    def train(inputs, target, mask):
+        with tf.GradientTape() as tape:
+            predictions = model(inputs, training=True)
+            loss = loss_func(target[mask], predictions[mask]) + sum(model.losses)
+
+        gradients = tape.gradient(loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        return loss
+    return train
