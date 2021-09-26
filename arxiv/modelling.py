@@ -1,7 +1,13 @@
 import tensorflow as tf
+from spektral.layers.ops import sp_matrix_to_sp_tensor
 from tensorflow.keras.layers import Input, Dropout, BatchNormalization
+from tensorflow.keras import backend as K
+
 from spektral.layers import GCNConv
+import numpy as np
 import pandas as pd
+
+from arxiv.helpers import SparseRowIndexer
 
 
 def evaluate(graph, model, masks, evaluator):
@@ -15,17 +21,17 @@ def evaluate(graph, model, masks, evaluator):
     return tr_auc, va_auc, te_auc
 
 
-def build_model(number_nodes:  int, number_features: int, num_classes: int, channels: int = 256,
+def build_model(number_nodes: int, number_features: int, num_classes: int, channels: int = 256,
                 dropout: float = 0.4):
     x_inp = Input(shape=(number_features,))
-    a_inp = Input((number_nodes,), sparse=True)
-    x_1 = GCNConv(channels, activation="relu")([x_inp, a_inp])
+    a_inp = Input(shape=(number_nodes,))
+    x_1 = GCNConvBatched(channels, activation="relu")([x_inp, a_inp])
     x_1 = BatchNormalization()(x_1)
     x_1 = Dropout(dropout)(x_1)
-    x_2 = GCNConv(channels, activation="relu")([x_1, a_inp])
+    x_2 = GCNConvBatched(channels, activation="relu")([x_1, a_inp])
     x_2 = BatchNormalization()(x_2)
     x_2 = Dropout(dropout)(x_2)
-    predictions = GCNConv(num_classes, activation="softmax")([x_2, a_inp])
+    predictions = GCNConvBatched(num_classes, activation="softmax")([x_2, a_inp])
     model = tf.keras.Model(inputs=[x_inp, a_inp], outputs=predictions)
     return model
 
@@ -34,27 +40,57 @@ def train_model(model, optimizer, loss, dataset, masks, epochs: int = 2000, earl
                 batch_size: int = 32):
     train = get_training_function(model, loss, optimizer)
     x, adj, y = dataset[0].x, dataset[0].a, dataset[0].y
+
     for i in range(1, 1 + epochs):
-        all_data_used = False
-        while not all_data_used:
-            tr_loss = train([x, adj], y, mask_tr)
-            tr_acc, va_acc, te_acc = evaluate(x, adj, y, model, masks, evaluator)
-            print(
-                "Ep. {} - Loss: {:.3f} - Acc: {:.3f} - Val acc: {:.3f} - Test acc: "
-                "{:.3f}".format(i, tr_loss, tr_acc, va_acc, te_acc)
-            )
+        for batch, ((x_sliced, adj_sliced), y_sliced) in _get_shuffled_batches(x, adj, y, batch_size=batch_size):
+            tr_loss = train([x_sliced, adj_sliced], y_sliced)
+            #tr_acc, va_acc, te_acc = evaluate(x, adj, y, model, masks, evaluator)
+            #print(
+            #    "Ep. {} - Loss: {:.3f} - Acc: {:.3f} - Val acc: {:.3f} - Test acc: "
+            #    "{:.3f}".format(i, tr_loss, tr_acc, va_acc, te_acc)
+            #)
 
     return model
 
 
+def _get_shuffled_batches(x, adj, y, batch_size):
+    indices = np.arange(len(x))
+    np.random.shuffle(indices)
+    batches = int(len(x) / batch_size) + 1
+    row_indexer = SparseRowIndexer(adj)
+
+    for batch in range(batches):
+        min_index = batch * batch_size
+        max_index = batch * batch_size + batch_size
+        sliced_adj = row_indexer[np.arange(min_index, max_index)]
+        yield batch, ((x[min_index:max_index, :], sliced_adj.toarray()), y[min_index:max_index, :])
+
+
 def get_training_function(model, loss_func, optimizer):
     @tf.function
-    def train(inputs, target, mask):
+    def train(inputs, target):
         with tf.GradientTape() as tape:
             predictions = model(inputs, training=True)
-            loss = loss_func(target[mask], predictions[mask]) + sum(model.losses)
+            loss = loss_func(target, predictions) + sum(model.losses)
 
         gradients = tape.gradient(loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         return loss
     return train
+
+
+class GCNConvBatched(GCNConv):
+
+    def call(self, inputs, mask=None):
+        x, a = inputs
+
+        output = K.dot(x, self.kernel)
+        output = K.dot(a, output)
+
+        if self.use_bias:
+            output = K.bias_add(output, self.bias)
+        if mask is not None:
+            output *= mask[0]
+        output = self.activation(output)
+
+        return output
