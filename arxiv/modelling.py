@@ -1,12 +1,14 @@
-import tensorflow as tf
-from spektral.layers.ops import sp_matrix_to_sp_tensor
-from tensorflow.keras.layers import Input, Dropout, BatchNormalization
-from tensorflow.keras import backend as K
-
-from spektral.layers import GCNConv
+import dgl
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from dgl.nn import SAGEConv
 import numpy as np
 import pandas as pd
+import sklearn
+import tqdm
 
+from arxiv.extraction import get_masks
 from arxiv.helpers import SparseRowIndexer
 
 
@@ -21,36 +23,83 @@ def evaluate(graph, model, masks, evaluator):
     return tr_auc, va_auc, te_auc
 
 
-def build_model(number_nodes: int, number_features: int, num_classes: int, channels: int = 256,
-                dropout: float = 0.4):
-    x_inp = Input(shape=(number_features,))
-    a_inp = Input(shape=(number_nodes,))
-    x_1 = GCNConvBatched(channels, activation="relu")([x_inp, a_inp])
-    x_1 = BatchNormalization()(x_1)
-    x_1 = Dropout(dropout)(x_1)
-    x_2 = GCNConvBatched(channels, activation="relu")([x_1, a_inp])
-    x_2 = BatchNormalization()(x_2)
-    x_2 = Dropout(dropout)(x_2)
-    predictions = GCNConvBatched(num_classes, activation="softmax")([x_2, a_inp])
-    model = tf.keras.Model(inputs=[x_inp, a_inp], outputs=predictions)
-    return model
+class Model(nn.Module):
+    def __init__(self, in_feats, h_feats, num_classes):
+        super(Model, self).__init__()
+        self.conv1 = SAGEConv(in_feats, h_feats, aggregator_type='mean')
+        self.conv2 = SAGEConv(h_feats, num_classes, aggregator_type='mean')
+        self.h_feats = h_feats
+
+    def forward(self, mfgs, x):
+        h_dst = x[:mfgs[0].num_dst_nodes()]
+        h = self.conv1(mfgs[0], (x, h_dst))
+        h = F.relu(h)
+        h_dst = h[:mfgs[1].num_dst_nodes()]
+        h = self.conv2(mfgs[1], (h, h_dst))
+        return h
 
 
-def train_model(model, optimizer, loss, dataset, masks, epochs: int = 2000, early_stopping_patience: int = 50,
-                batch_size: int = 32):
-    train = get_training_function(model, loss, optimizer)
-    x, adj, y = dataset[0].x, dataset[0].a, dataset[0].y
+def train_model(model, graph, train_idx, val_idx = None, epochs: int = 20,
+                early_stopping_patience: int = 3, batch_size: int = 1024):
+    optimizer = torch.optim.Adam(model.parameters())
+    accuracy_not_improved_since = 0
+    train_dataloader = get_data_loader(graph, train_idx, batch_size=batch_size)
+    if val_idx is not None:
+        val_dataloader = get_data_loader(graph, val_idx,  batch_size=batch_size)
+    else:
+        val_dataloader = None
 
-    for i in range(1, 1 + epochs):
-        for batch, ((x_sliced, adj_sliced), y_sliced) in _get_shuffled_batches(x, adj, y, batch_size=batch_size):
-            tr_loss = train([x_sliced, adj_sliced], y_sliced)
-            #tr_acc, va_acc, te_acc = evaluate(x, adj, y, model, masks, evaluator)
-            #print(
-            #    "Ep. {} - Loss: {:.3f} - Acc: {:.3f} - Val acc: {:.3f} - Test acc: "
-            #    "{:.3f}".format(i, tr_loss, tr_acc, va_acc, te_acc)
-            #)
+    best_accuracy = 0
+    best_model_path = 'model.pt'
+    for epoch in range(1, 1 + epochs):
+        model.train()
+        with tqdm.tqdm(train_dataloader) as tq:
+            for batch, (inp_nodes, out_nodes, mfgs) in enumerate(tq):
+                loss, accuracy = _train_step(model, optimizer,  mfgs)
+                tq.set_postfix({'loss': '%.03f' % loss.item(), 'acc': '%.03f' % accuracy}, refresh=False)
 
-    return model
+        if val_dataloader is not None:
+            val_accuracy = _eval_model(model, val_dataloader)
+            print('Epoch {} Validation Accuracy {}'.format(epoch, accuracy))
+            accuracy_not_improved_since += 1
+            if best_accuracy < val_accuracy:
+                accuracy_not_improved_since = 0
+                best_accuracy = val_accuracy
+                torch.save(model.state_dict(), best_model_path)
+            if accuracy_not_improved_since >= early_stopping_patience:
+                break
+
+
+def _eval_model(model, val_dataloader=None):
+    model.eval()
+    val_predictions = []
+    val_labels = []
+    if val_dataloader is not None:
+        with tqdm.tqdm(val_dataloader) as tq, torch.no_grad():
+            for input_nodes, output_nodes, mfgs in tq:
+                inputs = mfgs[0].srcdata['feat']
+                val_labels.append(mfgs[-1].dstdata['label'].cpu().numpy())
+                val_predictions.append(model(mfgs, inputs).argmax(1).cpu().numpy())
+            val_predictions = np.concatenate(val_predictions)
+            val_labels = np.concatenate(val_labels)
+            accuracy = sklearn.metrics.accuracy_score(val_labels, val_predictions)
+
+    return accuracy
+
+
+def _train_step(model, optimizer,  mfgs):
+    inputs = mfgs[0].srcdata['feat']
+    labels = mfgs[-1].dstdata['label']
+
+    predictions = model(mfgs, inputs)
+
+    loss = F.cross_entropy(predictions, labels)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    accuracy = sklearn.metrics.accuracy_score(labels.cpu().numpy(),
+                                              predictions.argmax(1).detach().cpu().numpy())
+    return loss, accuracy
 
 
 def _get_shuffled_batches(x, adj, y, batch_size):
@@ -66,31 +115,9 @@ def _get_shuffled_batches(x, adj, y, batch_size):
         yield batch, ((x[min_index:max_index, :], sliced_adj.toarray()), y[min_index:max_index, :])
 
 
-def get_training_function(model, loss_func, optimizer):
-    @tf.function
-    def train(inputs, target):
-        with tf.GradientTape() as tape:
-            predictions = model(inputs, training=True)
-            loss = loss_func(target, predictions) + sum(model.losses)
-
-        gradients = tape.gradient(loss, model.trainable_variables)
-        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-        return loss
-    return train
-
-
-class GCNConvBatched(GCNConv):
-
-    def call(self, inputs, mask=None):
-        x, a = inputs
-
-        output = K.dot(x, self.kernel)
-        output = K.dot(a, output)
-
-        if self.use_bias:
-            output = K.bias_add(output, self.bias)
-        if mask is not None:
-            output *= mask[0]
-        output = self.activation(output)
-
-        return output
+def get_data_loader(graph, ids, batch_size: int = 1024):
+    sampler = dgl.dataloading.MultiLayerNeighborSampler([4, 4])
+    train_dataloader = dgl.dataloading.NodeDataLoader(
+        graph, ids, sampler, batch_size=batch_size, shuffle=True, drop_last=False, num_workers=0
+    )
+    return train_dataloader

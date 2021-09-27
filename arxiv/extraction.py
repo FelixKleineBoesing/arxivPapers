@@ -1,24 +1,29 @@
-from ogb.nodeproppred import NodePropPredDataset
+from ogb.nodeproppred import DglNodePropPredDataset
 from pathlib import Path
 import numpy as np
+import dgl
 from spektral.datasets.ogb import OGB
 from spektral.layers import GCNConv
 from spektral.transforms import LayerPreprocess, GCNFilter, AdjToSpTensor
 
 
 def download_arxiv_dataset(download_dir: Path = Path("..", "data",  "raw")):
-    dataset = NodePropPredDataset(name="ogbn-arxiv", root=download_dir)
-    ogb_dataset = OGB(dataset, transforms=[GCNFilter()])
-    return ogb_dataset
+    dataset = DglNodePropPredDataset(name="ogbn-arxiv", root=download_dir)
+    return dataset
 
 
-def get_masks(idx, number_nodes):
-    idx_tr, idx_va, idx_te = idx["train"], idx["valid"], idx["test"]
-    mask_tr = np.zeros(number_nodes, dtype=bool)
-    mask_va = np.zeros(number_nodes, dtype=bool)
-    mask_te = np.zeros(number_nodes, dtype=bool)
-    mask_tr[idx_tr] = True
-    mask_va[idx_va] = True
-    mask_te[idx_te] = True
-    masks = {"train": mask_tr, "val": mask_va, "test": mask_te}
+def get_graph_and_node_labels(dataset: DglNodePropPredDataset):
+    graph, node_labels = dataset[0]
+    # Add reverse edges since ogbn-arxiv is unidirectional.
+    graph = dgl.add_reverse_edges(graph)
+    graph.ndata['label'] = node_labels[:, 0]
+    return graph, node_labels
+
+
+def get_masks(dataset):
+    idx_split = dataset.get_idx_split()
+    train_ids = idx_split['train']
+    valid_ids = idx_split['valid']
+    test_ids = idx_split['test']
+    masks = {"train": train_ids, "val": valid_ids, "test": test_ids}
     return masks

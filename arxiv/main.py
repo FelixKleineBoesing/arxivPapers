@@ -1,37 +1,25 @@
 from pathlib import Path
 import pandas as pd
+import torch
 from ogb.nodeproppred import Evaluator
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.optimizers import Adam
 
-from arxiv.evaluate import evaluate_model
-from arxiv.extraction import download_arxiv_dataset, get_masks
-from arxiv.modelling import train_model, build_model
 
-import tensorflow as tf
-physical_devices = tf.config.list_physical_devices('GPU')
-for device in physical_devices:
-    tf.config.experimental.set_memory_growth(device, True)
+from arxiv.extraction import download_arxiv_dataset, get_masks, get_graph_and_node_labels
+from arxiv.modelling import train_model, Model
+
 
 
 def main():
     dataset = download_arxiv_dataset(Path("..",  "data", "raw"))
-    graph = dataset[0]
+    graph, node_labels = get_graph_and_node_labels(dataset)
+    node_features = graph.ndata['feat']
+    num_features = node_features.shape[1]
+    num_classes = (node_labels.max() + 1).item()
 
-    number_nodes = dataset.n_nodes
-    number_node_features = dataset.n_node_features
-    number_classes = dataset.n_labels
-
-    idx = dataset.dataset.get_idx_split()
-    masks = get_masks(idx, number_nodes)
     evaluator = Evaluator("ogbn-arxiv")
-
-    model = build_model(number_nodes=number_nodes, number_features=number_node_features, num_classes=number_classes)
-    optimizer = Adam()
-    loss = SparseCategoricalCrossentropy()
-    model = train_model(model, optimizer=optimizer, loss=loss, dataset=dataset, masks=masks)
-    evl_results = evaluate_model(model, dataset, masks)
-    print(evl_results)
+    masks = get_masks(dataset)
+    model = Model(num_features, 256, num_classes)
+    model = train_model(model, graph=graph, train_idx=masks["train"], val_idx=masks["val"])
 
 
 if __name__ == "__main__":

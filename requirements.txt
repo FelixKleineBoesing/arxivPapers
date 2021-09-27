@@ -3,5 +3,5 @@ pandas
 numpy
 fastapi
 uvicorn[standard]
-tensorflow
-spektral
+torch
+dgl
