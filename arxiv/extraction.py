@@ -1,10 +1,7 @@
 from ogb.nodeproppred import DglNodePropPredDataset
 from pathlib import Path
-import numpy as np
+import pandas as pd
 import dgl
-from spektral.datasets.ogb import OGB
-from spektral.layers import GCNConv
-from spektral.transforms import LayerPreprocess, GCNFilter, AdjToSpTensor
 
 
 def download_arxiv_dataset(download_dir: Path = Path("..", "data",  "raw")):
@@ -27,3 +24,14 @@ def get_masks(dataset):
     test_ids = idx_split['test']
     masks = {"train": train_ids, "val": valid_ids, "test": test_ids}
     return masks
+
+
+def read_meta_data(path: str = Path("..", "data", "raw", "titleabs.tsv")):
+    data = pd.read_table(path, header=None)
+    data.columns = ["ID", "Title", "Abstract"]
+    #data.drop(0, axis=0, inplace=True)
+
+
+
+if __name__ == "__main__":
+    read_meta_data()

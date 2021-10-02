@@ -60,14 +60,18 @@ def train_model(model, graph, train_idx, val_idx = None, epochs: int = 20,
 
         if val_dataloader is not None:
             val_accuracy = _eval_model(model, val_dataloader)
-            print('Epoch {} Validation Accuracy {}'.format(epoch, accuracy))
+            print('Epoch {} Validation Accuracy {}'.format(epoch, val_accuracy))
             accuracy_not_improved_since += 1
             if best_accuracy < val_accuracy:
                 accuracy_not_improved_since = 0
                 best_accuracy = val_accuracy
                 torch.save(model.state_dict(), best_model_path)
             if accuracy_not_improved_since >= early_stopping_patience:
+                print("Breaked")
                 break
+            print(f"Best Accuracy: {best_accuracy}")
+            print(f"Not improved since: {accuracy_not_improved_since}")
+    print(f"Best Accuracy: {best_accuracy}")
 
 
 def _eval_model(model, val_dataloader=None):

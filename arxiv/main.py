@@ -19,7 +19,8 @@ def main():
     evaluator = Evaluator("ogbn-arxiv")
     masks = get_masks(dataset)
     model = Model(num_features, 256, num_classes)
-    model = train_model(model, graph=graph, train_idx=masks["train"], val_idx=masks["val"])
+    model = train_model(model, graph=graph, train_idx=masks["train"], val_idx=masks["val"],
+                        epochs=200, early_stopping_patience=20)
 
 
 if __name__ == "__main__":
