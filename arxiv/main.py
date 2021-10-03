@@ -8,7 +8,6 @@ from arxiv.extraction import download_arxiv_dataset, get_masks, get_graph_and_no
 from arxiv.modelling import train_model, Model
 
 
-
 def main():
     dataset = download_arxiv_dataset(Path("..",  "data", "raw"))
     graph, node_labels = get_graph_and_node_labels(dataset)
