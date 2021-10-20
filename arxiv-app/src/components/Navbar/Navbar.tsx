@@ -1,22 +1,32 @@
-import React from 'react';
 import './Navbar.scss';
-import
+import Navbar from 'react-bootstrap/Navbar'
+import React, { Component } from "react";
+import { Container, Nav, NavDropdown } from 'react-bootstrap';
 
-class Navbar extends React.Component {
-    render() {
+class NavBar extends Component {
+  render() {
     return (
-        <Navbar className="navbar navbar-expand-lg fixed-top is-white is-dark-text">
-              <div className="navbar-brand h1 mb-0 text-large font-medium">
-                Online Retail Dashboard
-              </div>
-              <div className="navbar-nav ml-auto">
-                <div className="user-detail-section">
-                  <span className="pr-2">Hi, Sean</span>
-              </div>
-          </div>
-        </Navbar>
-        );
-    }
+      <Navbar bg="light" expand="lg">
+        <Container>
+          <Navbar.Brand href="#home">React-Bootstrap</Navbar.Brand>
+          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="me-auto">
+              <Nav.Link href="#home">Home</Nav.Link>
+              <Nav.Link href="#link">Link</Nav.Link>
+              <NavDropdown title="Dropdown" id="basic-nav-dropdown">
+                <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
+                <NavDropdown.Item href="#action/3.2">Another action</NavDropdown.Item>
+                <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item>
+                <NavDropdown.Divider />
+                <NavDropdown.Item href="#action/3.4">Separated link</NavDropdown.Item>
+              </NavDropdown>
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
+    );
+  }
 }
 
-export default Navbar;
+export default NavBar;

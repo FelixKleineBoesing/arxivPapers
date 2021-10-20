@@ -1,0 +1,45 @@
+#sigma-container {
+  width: 100%;
+  height: 200px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+#controls {
+  position: absolute;
+  right: 1em;
+  top: 1em;
+  text-align: right;
+}
+.input {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+.input:not(:hover) label {
+  display: none;
+}
+.input label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: black;
+  color: white;
+  padding: 0.2em;
+  border-radius: 2px;
+  margin-top: 0.3em;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+.input button {
+  width: 2.5em;
+  height: 2.5em;
+  display: inline-block;
+  text-align: center;
+  background: white;
+  outline: none;
+  border: 1px solid dimgrey;
+  border-radius: 2px;
+  cursor: pointer;
+}
