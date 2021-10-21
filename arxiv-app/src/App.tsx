@@ -6,7 +6,7 @@ import Charts from './components/Charts/Charts';
 function App() {
   return (
     <div className="App">
-      <Navbar />
+        <Navbar />
       <body>
         <Charts />
       </body>
