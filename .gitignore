@@ -25,3 +25,4 @@ arxiv-app/.env.production.local
 arxiv-app/npm-debug.log*
 arxiv-app/yarn-debug.log*
 arxiv-app/yarn-error.log*
+arxiv/data/raw/ogbn_arxiv/
