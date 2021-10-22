@@ -21,9 +21,9 @@ class SigmaGraph extends Component {
   getGraph() {
     const data = {"attributes": {"name": "test"}, 
     "nodes": [
-      {"key": "A", "attributes":{"label": "A", "size": 10, "x": 1, "y": 2}}, 
+      {"key": "A", "attributes": {"label": "A", "size": 10, "x": 1, "y": 2}}, 
       {"key": "B", "attributes": {"x": 3, "y": 2, "label": "B", "size": 20}}, 
-      {"key": "C", "attributes":{"x": 2, "y": 3, "label": "C", "size": 15}}], 
+      {"key": "C", "attributes": {"x": 2, "y": 3, "label": "C", "size": 15}}], 
       edges: [
       {
         key: 'A->B',
