@@ -8,7 +8,7 @@ class NavBar extends Component {
     return (
       <Navbar bg="light" expand="lg">
         <Container>
-          <Navbar.Brand href="home">Felix Kleine Bösing</Navbar.Brand>
+          <Navbar.Brand href="">Felix Kleine Bösing</Navbar.Brand>
           <Navbar.Brand href="arxiv">Arxiv Computer Science Paper</Navbar.Brand>
          </Container>
       </Navbar>
