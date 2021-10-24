@@ -1,9 +1,11 @@
-from fastapi import FastAPI
+from pathlib import Path
 
+from fastapi import FastAPI
+from arxiv.jobs.prepare_data_for_api import main
 
 app = FastAPI()
 
-
+edges, nodes, abstracts, categories, positions, calculated_algorithms = main(download_dir=Path("..", "..", "data",  "raw"), extract_dir=Path("..", "..", "data", "processed"))
 
 
 @app.get("/get-nodes")
