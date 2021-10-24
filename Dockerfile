@@ -12,4 +12,4 @@ RUN pip3 install -r requirements.txt
 RUN pip3 install .
 RUN pip3 uninstall -r requirements_dev.txt
 
-CMD ["uvicorn", "arxiv.api.api:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "arxiv.api.api:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "3000"]
