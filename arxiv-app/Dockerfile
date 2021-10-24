@@ -19,7 +19,6 @@ ENV PATH /app/node_modules/.bin:$PATH
 # install and cache app dependencies
 COPY package.json /app/package.json
 RUN npm install
-RUN npm install -g @angular/cli@7.3.9
 
 # add app
 COPY . /app
@@ -29,7 +28,7 @@ COPY . /app
 #RUN ng e2e --port 4202
 
 # generate build
-RUN ng build --output-path=dist
+RUN npm run build
 
 ############
 ### prod ###
@@ -39,7 +38,7 @@ RUN ng build --output-path=dist
 FROM nginx:1.16.0-alpine
 
 # copy artifact build from the 'build environment'
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/build /usr/share/nginx/html
 
 # expose port 80
 EXPOSE 80
