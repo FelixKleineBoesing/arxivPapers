@@ -7,7 +7,10 @@ from arxiv.jobs.prepare_data_for_api import DataSupplier
 
 app = FastAPI()
 
-data_supplier = DataSupplier(download_dir=Path("..", "..", "data",  "raw"), extract_dir=Path("..", "..", "data", "processed"))
+data_supplier = DataSupplier(download_dir=Path("..", "..", "data",  "raw"),
+                             extract_dir=Path("..", "..", "data", "processed"),
+                             asynchron=False)
+data_supplier.run()
 
 
 @app.get("/get-nodes")

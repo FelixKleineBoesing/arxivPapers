@@ -46,6 +46,7 @@ def read_meta_data(path: str = Path("../..", "data", "raw", "titleabs.tsv")):
 
 
 def get_mapping(dataset, meta_data: pd.DataFrame, node_ids: pd.DataFrame, categories):
+    meta_data = meta_data.copy()
     meta_data["ID"] = meta_data["ID"].astype(np.int64)
     meta_data.columns = ["mag_id", "title", "abstract"]
     node_ids.columns = ["ID", "mag_id"]

@@ -12,21 +12,29 @@ from pathlib import Path
 class DataSupplier:
 
     def __init__(self, download_dir=Path("..", "..", "data", "raw"), extract_dir=Path("..", "..", "data", "processed"),
-                 overwrite: bool = False, base_position_algorithm: str = "kamada_kawai"):
+                 overwrite: bool = False, base_position_algorithm: str = "kamada_kawai",
+                 asynchron: bool = True):
         self.download_dir = download_dir
         self.extract_dir = extract_dir
         self.overwrite = overwrite
         self.base_position_algorithm = base_position_algorithm
         self.lock = mp.Lock()
-        self.m_dict = mp.Manager().dict()
+        if asynchron:
+            self.m_dict = mp.Manager().dict()
+        else:
+            self.m_dict = {}
+        self.asychron = asynchron
 
     def run(self):
-        p = mp.Process(target=self.import_data, args=())
-        p.start()
-        len_items = 0
-        while len_items < 5:
-            with self.lock:
-                len_items = len(self.m_dict)
+        if self.asychron:
+            p = mp.Process(target=self.import_data, args=())
+            p.start()
+            len_items = 0
+            while len_items < 5:
+                with self.lock:
+                    len_items = len(self.m_dict)
+        else:
+            self.import_data()
         print("All items imported")
 
     def get_edges(self):
@@ -128,7 +136,7 @@ def get_paths(path: Path):
     abstract_path = Path(path, "abstracts.pckl")
     positions_path = Path(path, "positions.pckl")
     cal_pos_algo_path = Path(path, "cal_pos_algo.pckl")
-    paths = {"edges": edges_path, "category": cat_path, "nodes": nodes_path, "abstracts": abstract_path,
+    paths = {"edges": edges_path, "categories": cat_path, "nodes": nodes_path, "abstracts": abstract_path,
              "positions": positions_path, "cal_pos_algorithms": cal_pos_algo_path}
     return paths
 

@@ -19,6 +19,12 @@ def get_node_positions(dataset, algorithm: str = "kamada_kawai"):
         positions = shell_layout(network)
     elif algorithm == "spring":
         positions = spring_layout(network)
+    elif algorithm == "embedding":
+        positions = get_positions_by_embeddings(dataset)
     else:
         raise AssertionError(f"The algorithm {algorithm} is not available!")
     return positions
+
+
+def get_positions_by_embeddings(dataset):
+    dataset

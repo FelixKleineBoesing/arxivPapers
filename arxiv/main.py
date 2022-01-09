@@ -4,7 +4,7 @@ import torch
 from ogb.nodeproppred import Evaluator
 
 
-from arxiv.extraction import download_arxiv_dataset, get_masks, get_graph_and_node_labels
+from arxiv.extraction.extraction import download_arxiv_dataset, get_masks, get_graph_and_node_labels
 from arxiv.modelling import train_model, Model
 
 

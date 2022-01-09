@@ -8,7 +8,6 @@ import pandas as pd
 import sklearn
 import tqdm
 
-from arxiv.extraction import get_masks
 from arxiv.helpers import SparseRowIndexer
 
 
